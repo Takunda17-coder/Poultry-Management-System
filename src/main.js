@@ -5,6 +5,7 @@ import { dirname } from "path";
 
 import { registerIpcHandlers } from "./main/ipc/handlers.js";
 import db from "./main/db/database.js";
+require('update-electron-app')();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
