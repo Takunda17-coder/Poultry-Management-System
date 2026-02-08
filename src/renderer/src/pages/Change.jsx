@@ -78,7 +78,7 @@ export default function Change() {
           </div>
         ) : (
           <Table
-            headers={['Customer', 'Phone', 'Sale Date', 'Sale Total', 'Change Amount', 'Action']}
+            headers={['Customer', 'Phone', 'Sale Date', 'Sale Total', 'Change Amount']}
             rows={changes.map(change => ({
               'Customer': change.customer_name || '-',
               'Phone': change.customer_phone || '-',

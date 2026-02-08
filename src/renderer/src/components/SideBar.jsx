@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home, Plus, Users, Egg, Bird, X, ShoppingCart, BarChart3, Package, AlertTriangle, Droplet, CreditCard, Coins } from 'lucide-react';
+import { Home, Plus, Users, Egg, Bird, X, ShoppingCart, BarChart3, Package, AlertTriangle, Droplet, CreditCard, Coins, TrendingUp, Database } from 'lucide-react';
 
 export default function Sidebar({ isOpen, onClose }) {
   const menuItems = [
@@ -13,8 +13,10 @@ export default function Sidebar({ isOpen, onClose }) {
     { label: 'Egg Loss', path: '/egg-loss', icon: Droplet },
     { label: 'Sales', path: '/sales', icon: ShoppingCart },
     { label: 'Accounting', path: '/accounting', icon: BarChart3 },
+    { label: 'Reports', path: '/reports', icon: TrendingUp },
     { label: 'Outstanding Debts', path: '/debt', icon: CreditCard },
     { label: 'Customer Change', path: '/change', icon: Coins },
+    { label: 'Data Migration', path: '/data-migration', icon: Database },
   ];
 
   return (

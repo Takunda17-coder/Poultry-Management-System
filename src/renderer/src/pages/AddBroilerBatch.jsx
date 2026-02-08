@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Bird, Trash2, Edit2 } from 'lucide-react';
+import { Bird, Trash2, Edit2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FormInput, FormSelect, FormButton, FormTextarea, Card, Table } from '../components/FormComponents';
 
 export default function AddBroilerBatch() {
   const [suppliers, setSuppliers] = useState([]);
   const [batches, setBatches] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const [form, setForm] = useState({
     supplier_id: "",
@@ -20,7 +23,7 @@ export default function AddBroilerBatch() {
     try {
       const [sup, bat] = await Promise.all([
         window.api.suppliers.list(),
-        window.api.broiler.listBatches(),
+        window.api.broiler.listBatchesWithAvailability(),
       ]);
       setSuppliers(sup);
       setBatches(bat);
@@ -42,8 +45,14 @@ export default function AddBroilerBatch() {
 
     try {
       if (editingId) {
-        alert('Update functionality needs backend implementation');
-        // await window.api.broiler.updateBatch(editingId, { ... });
+        await window.api.broiler.updateBatch(editingId, {
+          supplier_id: Number(form.supplier_id),
+          batch_code: form.batch_code || null,
+          quantity_received: Number(form.quantity_received),
+          cost_per_bird: Number(form.cost_per_bird),
+          date_received: form.date_received,
+          notes: form.notes || null,
+        });
       } else {
         await window.api.broiler.addBatch({
           supplier_id: Number(form.supplier_id),
@@ -86,6 +95,19 @@ export default function AddBroilerBatch() {
       notes: "",
     });
     setEditingId(null);
+  };
+
+  const handleDeleteBatch = async (batchId) => {
+    if (window.confirm('Are you sure you want to delete this batch?')) {
+      try {
+        await window.api.broiler.deleteBatch(batchId);
+        alert('Broiler batch deleted successfully');
+        await loadData();
+      } catch (error) {
+        console.error('Error deleting batch:', error);
+        alert('Error deleting batch: ' + error.message);
+      }
+    }
   };
 
   return (
@@ -164,42 +186,109 @@ export default function AddBroilerBatch() {
       </Card>
 
       <Card title="Existing Batches">
-        <Table 
-          headers={['Batch Code', 'Supplier', 'Quantity', 'Cost/Bird', 'Date Received']} 
-          rows={batches.map(b => ({
-            'Batch Code': b.batch_code || '-',
-            'Supplier': b.supplier_name || '-',
-            'Quantity': b.quantity_received,
-            'Cost/Bird': `$${b.cost_per_bird.toFixed(2)}`,
-            'Date Received': b.date_received,
-          }))}
-          actions={(row) => {
-            const batch = batches.find(b => (b.batch_code || '-') === row['Batch Code']);
-            return (
-              <>
-                <button 
-                  onClick={() => batch && handleEditBatch(batch)}
-                  className="text-blue-600 hover:text-blue-700 transition mr-2" 
-                  title="Edit"
-                >
-                  <Edit2 size={18} />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (batch && window.confirm('Are you sure you want to delete this batch?')) {
-                      console.log('Deleting batch:', batch.id);
-                      alert('Delete functionality needs backend implementation');
-                    }
-                  }}
-                  className="text-red-600 hover:text-red-700 transition" 
-                  title="Delete"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </>
-            );
-          }}
-        />
+        {/* Search */}
+        <div className="mb-6 flex items-center gap-2">
+          <Search size={20} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search batches by code or supplier..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Filtered Batches */}
+        {(() => {
+          const filtered = batches.filter(batch => 
+            (batch.batch_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (batch.supplier_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+          );
+
+          const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+          const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+          const paginatedBatches = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+          return (
+            <>
+              <Table 
+                headers={['Batch Code', 'Supplier', 'Quantity', 'Available', 'Cost/Bird', 'Date Received']} 
+                rows={paginatedBatches.map(b => ({
+                  'Batch Code': b.batch_code || '-',
+                  'Supplier': b.supplier_name || '-',
+                  'Quantity': b.quantity_received,
+                  'Available': b.available_birds || 0,
+                  'Cost/Bird': `$${(b.cost_per_bird || 0).toFixed(2)}`,
+                  'Date Received': b.date_received,
+                }))}
+                actions={(row) => {
+                  const batch = paginatedBatches.find(b => (b.batch_code || '-') === row['Batch Code']);
+                  return (
+                    <>
+                      <button 
+                        onClick={() => batch && handleEditBatch(batch)}
+                        className="text-blue-600 hover:text-blue-700 transition mr-2" 
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => batch && handleDeleteBatch(batch.id)}
+                        className="text-red-600 hover:text-red-700 transition" 
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </>
+                  );
+                }}
+              />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Showing {startIdx + 1}-{Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)} of {filtered.length} batches
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 rounded ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </Card>
     </div>
   );

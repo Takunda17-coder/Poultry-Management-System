@@ -13,6 +13,8 @@ import BirdEvents from './pages/BirdEvents';
 import EggLoss from './pages/EggLoss';
 import Debt from './pages/Debt';
 import Change from './pages/Change';
+import Reports from './pages/Reports';
+import DataMigration from './pages/DataMigration';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,6 +43,8 @@ export default function App() {
               <Route path="/egg-loss" element={<EggLoss />} />
               <Route path="/debt" element={<Debt />} />
               <Route path="/change" element={<Change />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/data-migration" element={<DataMigration />} />
             </Routes>
           </div>
         </main>

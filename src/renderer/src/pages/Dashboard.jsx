@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Bird, Egg, Users, TrendingUp } from 'lucide-react';
+import { Bird, Egg, Users, TrendingUp, CreditCard, Coins, DollarSign } from 'lucide-react';
+import { Card } from '../components/FormComponents';
 
 export default function Dashboard() {
   const [broilerCount, setBroilerCount] = useState(0);
   const [eggCount, setEggCount] = useState(0);
   const [supplierCount, setSupplierCount] = useState(0);
   const [revenue, setRevenue] = useState(0);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [totalDebt, setTotalDebt] = useState(0);
+  const [totalChange, setTotalChange] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,16 +18,22 @@ export default function Dashboard() {
 
   const loadStats = async () => {
     try {
-      const [broilers, eggs, suppliers, rev] = await Promise.all([
+      const [broilers, eggs, suppliers, rev, payMethods, debt, change] = await Promise.all([
         window.api.stats.getBroilerCount(),
         window.api.stats.getEggCount(),
         window.api.stats.getSupplierCount(),
         window.api.stats.getRevenue(),
+        window.api.sales.getByPaymentMethod(),
+        window.api.debt.getTotalOutstanding(),
+        window.api.change.getTotalOutstanding(),
       ]);
       setBroilerCount(broilers);
       setEggCount(eggs);
       setSupplierCount(suppliers);
       setRevenue(rev);
+      setPaymentMethods(payMethods || []);
+      setTotalDebt(debt || 0);
+      setTotalChange(change || 0);
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -35,7 +45,7 @@ export default function Dashboard() {
     { label: 'Total Broiler Batches', value: broilerCount.toString(), icon: Bird, color: 'bg-blue-500' },
     { label: 'Egg Batches', value: eggCount.toString(), icon: Egg, color: 'bg-yellow-500' },
     { label: 'Suppliers', value: supplierCount.toString(), icon: Users, color: 'bg-green-500' },
-    { label: 'Revenue', value: `$${revenue.toFixed(2)}`, icon: TrendingUp, color: 'bg-purple-500' },
+    { label: 'Total Revenue', value: `$${revenue.toFixed(2)}`, icon: TrendingUp, color: 'bg-purple-500' },
   ];
 
   return (
@@ -68,33 +78,83 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <a
             href="/add-broiler"
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center space-x-2"
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <Bird size={20} />
-            <span>Add Broiler Batch</span>
+            <span>Add Broiler</span>
           </a>
           <a
             href="/add-eggs"
-            className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center space-x-2"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <Egg size={20} />
-            <span>Add Egg Batch</span>
+            <span>Add Eggs</span>
           </a>
           <a
             href="/add-supplier"
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center space-x-2"
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <Users size={20} />
             <span>Add Supplier</span>
           </a>
-          <button className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center space-x-2">
+          <a
+            href="/sales"
+            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
+          >
+            <DollarSign size={20} />
+            <span>New Sale</span>
+          </a>
+          <a
+            href="/reports"
+            className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
+          >
             <TrendingUp size={20} />
-            <span>View Reports</span>
-          </button>
+            <span>Reports</span>
+          </a>
         </div>
+      </div>
+
+      {/* Financial Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card title="Outstanding Debts">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-3xl font-bold text-red-600">${totalDebt.toFixed(2)}</p>
+              <p className="text-sm text-gray-600 mt-2">Credit sales needing payment</p>
+            </div>
+            <CreditCard className="text-red-600" size={48} />
+          </div>
+          <a href="/debt" className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-4 block">View Debts →</a>
+        </Card>
+
+        <Card title="Outstanding Change">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-3xl font-bold text-blue-600">${totalChange.toFixed(2)}</p>
+              <p className="text-sm text-gray-600 mt-2">Cash owed to customers</p>
+            </div>
+            <Coins className="text-blue-600" size={48} />
+          </div>
+          <a href="/change" className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-4 block">View Change →</a>
+        </Card>
+
+        <Card title="Payment Methods">
+          <div className="space-y-2">
+            {paymentMethods.length > 0 ? (
+              paymentMethods.map((method, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
+                  <span className="text-gray-700 capitalize font-medium">{method.payment_method}</span>
+                  <span className="text-gray-900 font-bold">${method.total.toFixed(2)}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600 text-sm">No sales data available</p>
+            )}
+          </div>
+        </Card>
       </div>
 
       {/* Recent Activity */}

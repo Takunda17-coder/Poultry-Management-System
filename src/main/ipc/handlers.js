@@ -14,12 +14,28 @@ export function registerIpcHandlers() {
     suppliers.addSupplier(data)
     );
 
+    ipcMain.handle('supplier:update', (_, supplierId, data) =>
+        suppliers.updateSupplier(supplierId, data)
+    );
+
+    ipcMain.handle('supplier:delete', (_, supplierId) =>
+        suppliers.deleteSupplier(supplierId)
+    );
+
     ipcMain.handle('supplier:list', () =>
     suppliers.getAllSuppliers()
     );
     
     ipcMain.handle('broiler:addBatch', (_, data) =>
         broilers.addBroilerBatch(data)
+    );
+
+    ipcMain.handle('broiler:updateBatch', (_, batchId, data) =>
+        broilers.updateBroilerBatch(batchId, data)
+    );
+
+    ipcMain.handle('broiler:deleteBatch', (_, batchId) =>
+        broilers.deleteBroilerBatch(batchId)
     );
 
     ipcMain.handle('broiler:addEvent',(_,data) =>
@@ -30,8 +46,24 @@ export function registerIpcHandlers() {
         broilers.listBatches()
     );
 
+    ipcMain.handle('broiler:listBatchesWithAvailability', () =>
+        broilers.listBatchesWithAvailability()
+    );
+
+    ipcMain.handle('broiler:getAvailableBirds', (_, batchId) =>
+        broilers.getAvailableBirds(batchId)
+    );
+
     ipcMain.handle('egg:addBatch', (_, data) =>
         eggs.addEggBatch(data)
+    );
+
+    ipcMain.handle('egg:updateBatch', (_, batchId, data) =>
+        eggs.updateEggBatch(batchId, data)
+    );
+
+    ipcMain.handle('egg:deleteBatch', (_, batchId) =>
+        eggs.deleteEggBatch(batchId)
     );
 
     ipcMain.handle('egg:listBatches', () =>
@@ -89,6 +121,10 @@ export function registerIpcHandlers() {
 
     ipcMain.handle('sales:delete', (_, saleId) =>
         sales.deleteSale(saleId)
+    );
+
+    ipcMain.handle('sales:deleteItem', (_, itemId) =>
+        sales.deleteSaleItem(itemId)
     );
 
     ipcMain.handle('sales:getById', (_, saleId) =>
@@ -264,5 +300,22 @@ export function registerIpcHandlers() {
 
     ipcMain.handle('change:editReturn', (_, returnId, newAmount, returnedBy, notes) =>
         sales.editChangeReturn(returnId, newAmount, returnedBy, notes)
+    );
+
+    // Data migration handlers
+    ipcMain.handle('sales:getUnassignedBroilers', () =>
+        sales.getUnassignedBroilerSales()
+    );
+
+    ipcMain.handle('sales:getUnassignedEggs', () =>
+        sales.getUnassignedEggSales()
+    );
+
+    ipcMain.handle('sales:assignBroilerToBatch', (_, saleItemId, batchId) =>
+        sales.assignBroilerToBatch(saleItemId, batchId)
+    );
+
+    ipcMain.handle('sales:assignEggToBatch', (_, saleItemId, batchId) =>
+        sales.assignEggToBatch(saleItemId, batchId)
     );
 }

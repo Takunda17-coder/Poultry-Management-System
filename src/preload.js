@@ -3,15 +3,23 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("api", {
     suppliers: {
         add: (data) => ipcRenderer.invoke("supplier:add", data),
+        update: (supplierId, data) => ipcRenderer.invoke("supplier:update", supplierId, data),
+        delete: (supplierId) => ipcRenderer.invoke("supplier:delete", supplierId),
         list: () => ipcRenderer.invoke("supplier:list"),
     },
     broiler: {
         addBatch: (data) => ipcRenderer.invoke("broiler:addBatch", data),
+        updateBatch: (batchId, data) => ipcRenderer.invoke("broiler:updateBatch", batchId, data),
+        deleteBatch: (batchId) => ipcRenderer.invoke("broiler:deleteBatch", batchId),
         addEvent: (data) => ipcRenderer.invoke("broiler:addEvent", data),
         listBatches: () => ipcRenderer.invoke("broiler:listBatches"),
+        listBatchesWithAvailability: () => ipcRenderer.invoke("broiler:listBatchesWithAvailability"),
+        getAvailableBirds: (batchId) => ipcRenderer.invoke("broiler:getAvailableBirds", batchId),
     },
     eggs: {
         addBatch: (data) => ipcRenderer.invoke("egg:addBatch", data),
+        updateBatch: (batchId, data) => ipcRenderer.invoke("egg:updateBatch", batchId, data),
+        deleteBatch: (batchId) => ipcRenderer.invoke("egg:deleteBatch", batchId),
         listBatches: () => ipcRenderer.invoke("egg:listBatches"),
         grade: (data) => ipcRenderer.invoke("egg:grade", data),
     },
@@ -30,7 +38,12 @@ contextBridge.exposeInMainWorld("api", {
         getByPaymentMethod: () => ipcRenderer.invoke("sales:getByPaymentMethod"),
         update: (saleId, data) => ipcRenderer.invoke("sales:update", saleId, data),
         delete: (saleId) => ipcRenderer.invoke("sales:delete", saleId),
+        deleteItem: (itemId) => ipcRenderer.invoke("sales:deleteItem", itemId),
         getById: (saleId) => ipcRenderer.invoke("sales:getById", saleId),
+        getUnassignedBroilers: () => ipcRenderer.invoke("sales:getUnassignedBroilers"),
+        getUnassignedEggs: () => ipcRenderer.invoke("sales:getUnassignedEggs"),
+        assignBroilerToBatch: (saleItemId, batchId) => ipcRenderer.invoke("sales:assignBroilerToBatch", saleItemId, batchId),
+        assignEggToBatch: (saleItemId, batchId) => ipcRenderer.invoke("sales:assignEggToBatch", saleItemId, batchId),
     },
     accounting: {
         getFinancialSummary: () => ipcRenderer.invoke("accounting:getFinancialSummary"),

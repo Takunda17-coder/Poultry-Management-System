@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { Users, Trash2, Edit2 } from "lucide-react";
+import { Users, Trash2, Edit2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { FormInput, FormButton, Card, Table } from "../components/FormComponents";
 
 export default function AddSupplier() {
   const [suppliers, setSuppliers] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [form, setForm] = useState({
     name: "",
     product: "",
@@ -36,8 +39,13 @@ export default function AddSupplier() {
     e.preventDefault();
     try {
       if (editingId) {
-        alert('Update functionality needs backend implementation');
-        // await window.api.suppliers.update(editingId, { ... });
+        await window.api.suppliers.update(editingId, {
+          name: form.name,
+          product: form.product,
+          phone: form.phone,
+          email: form.email,
+          address: form.address,
+        });
       } else {
         await window.api.suppliers.add({
           name: form.name,
@@ -83,9 +91,9 @@ export default function AddSupplier() {
   const handleDeleteSupplier = async (supplierId) => {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
-        // Note: Implement delete in backend if not already done
-        console.log('Deleting supplier:', supplierId);
-        alert('Delete functionality needs backend implementation');
+        await window.api.suppliers.delete(supplierId);
+        alert('Supplier deleted successfully');
+        await loadSuppliers();
       } catch (err) {
         setError(err.message);
         console.error('Error deleting supplier:', err);
@@ -164,46 +172,116 @@ export default function AddSupplier() {
       </Card>
 
       <Card title="Existing Suppliers">
-        {suppliers.length === 0 ? (
-          <p className="text-gray-500">No suppliers yet.</p>
-        ) : (
-          <Table 
-            headers={['Name', 'Product', 'Phone', 'Email', 'Address']} 
-            rows={suppliers.map(sup => ({
-              'Name': sup.name,
-              'Product': sup.product,
-              'Phone': sup.phone,
-              'Email': sup.email,
-              'Address': sup.address,
-            }))}
-            actions={(row) => {
-              const supplier = suppliers.find(s => s.name === row['Name']);
-              return (
-                <>
-                  <button 
-                    onClick={() => supplier && handleEditSupplier(supplier)}
-                    className="text-blue-600 hover:text-blue-700 transition mr-2" 
-                    title="Edit"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (supplier && window.confirm('Are you sure you want to delete this supplier?')) {
-                        console.log('Deleting supplier:', supplier.id);
-                        alert('Delete functionality needs backend implementation');
-                      }
-                    }}
-                    className="text-red-600 hover:text-red-700 transition" 
-                    title="Delete"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </>
-              );
+        {/* Search */}
+        <div className="mb-6 flex items-center gap-2">
+          <Search size={20} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search suppliers by name or product..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
             }}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        )}
+        </div>
+
+        {/* Filtered Suppliers */}
+        {(() => {
+          const filtered = suppliers.filter(sup => 
+            sup.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            sup.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            sup.phone.includes(searchTerm) ||
+            sup.email.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+
+          const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+          const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+          const paginatedSuppliers = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+          return (
+            <>
+              {filtered.length === 0 ? (
+                <p className="text-gray-500">No suppliers found.</p>
+              ) : (
+                <>
+                  <Table 
+                    headers={['Name', 'Product', 'Phone', 'Email', 'Address']} 
+                    rows={paginatedSuppliers.map(sup => ({
+                      'Name': sup.name,
+                      'Product': sup.product,
+                      'Phone': sup.phone,
+                      'Email': sup.email,
+                      'Address': sup.address,
+                    }))}
+                    actions={(row) => {
+                      const supplier = paginatedSuppliers.find(s => s.name === row['Name']);
+                      return (
+                        <>
+                          <button 
+                            onClick={() => supplier && handleEditSupplier(supplier)}
+                            className="text-blue-600 hover:text-blue-700 transition mr-2" 
+                            title="Edit"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => supplier && handleDeleteSupplier(supplier.id)}
+                            className="text-red-600 hover:text-red-700 transition" 
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      );
+                    }}
+                  />
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                      <p className="text-sm text-gray-600">
+                        Showing {startIdx + 1}-{Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)} of {filtered.length} suppliers
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="p-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <ChevronLeft size={18} />
+                        </button>
+                        <div className="flex items-center gap-2">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-1 rounded ${
+                                currentPage === page
+                                  ? 'bg-blue-600 text-white'
+                                  : 'border border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="p-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          );
+        })()}
       </Card>
     </div>
   );

@@ -79,7 +79,7 @@ export async function getOutstandingDebts() {
     return db.all(`
         SELECT id, customer_name, customer_phone, sale_date, total_amount, debt_amount, payment_method
         FROM sales
-        WHERE payment_method = 'credit' AND debt_amount > 0
+        WHERE debt_amount > 0
         ORDER BY sale_date DESC
     `);
 }
@@ -88,7 +88,7 @@ export async function getTotalOutstandingDebt() {
     const result = await db.get(`
         SELECT COALESCE(SUM(debt_amount), 0) as total
         FROM sales
-        WHERE payment_method = 'credit' AND debt_amount > 0
+        WHERE debt_amount > 0
     `);
     return result.total || 0;
 }
@@ -348,4 +348,60 @@ export async function editChangeReturn(returnId, newAmount, returnedBy, notes) {
     return db.run(`
         UPDATE sales SET change_amount = ? WHERE id = ?
     `, [newChange, returnRecord.sale_id]);
+}
+
+// ==================== DELETE SALE ITEM ====================
+
+export async function deleteSaleItem(itemId) {
+    return db.run(`
+        DELETE FROM sales_items WHERE id = ?
+    `, [itemId]);
+}
+
+// ==================== DATA MIGRATION - ASSIGN BROILERS TO BATCHES ====================
+
+export async function getUnassignedBroilerSales() {
+    return db.all(`
+        SELECT 
+            si.id,
+            si.sale_id,
+            si.quantity,
+            si.unit_price,
+            s.sale_date,
+            s.customer_name,
+            s.customer_phone
+        FROM sales_items si
+        JOIN sales s ON si.sale_id = s.id
+        WHERE si.item_type = 'broiler' AND (si.reference_id = 0 OR si.reference_id IS NULL OR NOT EXISTS (SELECT 1 FROM bird_batches WHERE id = si.reference_id))
+        ORDER BY s.sale_date DESC
+    `);
+}
+
+export async function getUnassignedEggSales() {
+    return db.all(`
+        SELECT 
+            si.id,
+            si.sale_id,
+            si.quantity,
+            si.unit_price,
+            s.sale_date,
+            s.customer_name,
+            s.customer_phone
+        FROM sales_items si
+        JOIN sales s ON si.sale_id = s.id
+        WHERE si.item_type = 'egg' AND (si.reference_id = 0 OR si.reference_id IS NULL OR NOT EXISTS (SELECT 1 FROM egg_batches WHERE id = si.reference_id))
+        ORDER BY s.sale_date DESC
+    `);
+}
+
+export async function assignBroilerToBatch(saleItemId, batchId) {
+    return db.run(`
+        UPDATE sales_items SET reference_id = ? WHERE id = ?
+    `, [batchId, saleItemId]);
+}
+
+export async function assignEggToBatch(saleItemId, batchId) {
+    return db.run(`
+        UPDATE sales_items SET reference_id = ? WHERE id = ?
+    `, [batchId, saleItemId]);
 }

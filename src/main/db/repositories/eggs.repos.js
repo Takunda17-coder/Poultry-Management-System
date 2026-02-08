@@ -13,6 +13,14 @@ export function addEggBatch(batch){
     ]);
 }
 
+export function updateEggBatch(batchId, batch) {
+    return db.run(`
+        UPDATE egg_batches
+        SET supplier_id = ?, crates_received = ?, cost_per_crate = ?, date_received = ?
+        WHERE id = ?
+    `, [batch.supplier_id, batch.crates_received, batch.cost_per_crate, batch.date_received, batchId]);
+}
+
 export function listBatches() {
     return db.all(`
         SELECT eb.*, s.name as supplier_name
@@ -40,6 +48,12 @@ export async function getEggBatchCount() {
         SELECT COUNT(*) as count FROM egg_batches
     `);
     return result.count;
+}
+
+export function deleteEggBatch(batchId) {
+    return db.run(`
+        DELETE FROM egg_batches WHERE id = ?
+    `, [batchId]);
 }
 
 export async function getTotalRevenue() {
