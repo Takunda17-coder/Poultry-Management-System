@@ -10,6 +10,7 @@ export default function Sales() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [batches, setBatches] = useState([]);
+  const [eggBatches, setEggBatches] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -51,8 +52,12 @@ export default function Sales() {
 
   const loadBatchesData = async () => {
     try {
-      const batchesData = await window.api.broiler.listBatchesWithAvailability();
+      const [batchesData, eggBatchesData] = await Promise.all([
+        window.api.broiler.listBatchesWithAvailability(),
+        window.api.eggs.listBatches()
+      ]);
       setBatches(batchesData || []);
+      setEggBatches(eggBatchesData || []);
     } catch (error) {
       console.error('Error loading batches:', error);
     }
@@ -420,11 +425,37 @@ export default function Sales() {
                           </select>
                         </div>
                       )}
+
+                      {/* Egg Batch Selection */}
+                      {item.item_type === 'egg' && (
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select Batch *
+                          </label>
+                          <select
+                            value={item.batch_id || ''}
+                            onChange={(e) => handleItemChange(idx, 'batch_id', e.target.value ? Number(e.target.value) : null)}
+                            className="w-full border border-gray-300 rounded px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          >
+                            <option value="">-- Select a batch --</option>
+                            {eggBatches.map(batch => (
+                              <option 
+                                key={batch.id} 
+                                value={batch.id}
+                              >
+                                Batch {batch.id} 
+                                ({batch.crates_received} crates) - ₼{batch.cost_per_crate}/crate
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
 
                     {/* Batch Info and Quantity Row */}
                     <div className="flex gap-3 items-end">
-                      {/* Batch Info Display */}
+                      {/* Broiler Batch Info Display */}
                       {item.item_type === 'broiler' && selectedBatch && (
                         <div className="flex-1 bg-blue-50 border border-blue-200 p-3 rounded">
                           <div className="text-sm text-gray-700">
@@ -440,6 +471,28 @@ export default function Sales() {
                               Home Use: {selectedBatch.home_use_count} | 
                               Sold: {selectedBatch.sold_count}
                             </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Egg Batch Info Display */}
+                      {item.item_type === 'egg' && item.batch_id && (
+                        <div className="flex-1 bg-amber-50 border border-amber-200 p-3 rounded">
+                          <div className="text-sm text-gray-700">
+                            {eggBatches.find(b => b.id === item.batch_id) && (
+                              <>
+                                <p>
+                                  <span className="font-semibold">Crates:</span>{' '}
+                                  <span className="text-green-600 font-bold">
+                                    {eggBatches.find(b => b.id === item.batch_id)?.crates_received}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  Cost: ₼{eggBatches.find(b => b.id === item.batch_id)?.cost_per_crate}/crate | 
+                                  Received: {new Date(eggBatches.find(b => b.id === item.batch_id)?.date_received).toLocaleDateString()}
+                                </p>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
