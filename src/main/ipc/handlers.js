@@ -86,8 +86,9 @@ export function registerIpcHandlers() {
         suppliers.getSupplierCount()
     );
 
+    // Dashboard revenue: use total revenue from all sales, not just egg grades
     ipcMain.handle('stats:getRevenue', () =>
-        eggs.getTotalRevenue()
+        accounting.getTotalRevenue()
     );
 
     // Sales handlers

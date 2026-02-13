@@ -6,7 +6,10 @@ module.exports = {
     asar: true,
     icon: "assets/icon.ico",
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules: ['sqlite3'],
+    force: true,
+  },
   makers: [
     {
       name: "@electron-forge/maker-squirrel",
@@ -42,6 +45,10 @@ module.exports = {
 ],
 
   plugins: [
+    {
+      name: "@electron-forge/plugin-auto-unpack-natives",
+      config: {},
+    },
     {
       name: "@electron-forge/plugin-vite",
       config: {

@@ -1,6 +1,10 @@
-import sqlite3 from "sqlite3";
 import path from "path";
 import { app } from "electron";
+import { createRequire } from "module";
+
+// Import sqlite3 using CommonJS require (it's a native CommonJS module)
+const require = createRequire(import.meta.url);
+const sqlite3 = require("sqlite3");
 
 const dbPath = path.join(app.getPath("userData"), "poultry.db");
 

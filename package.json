@@ -10,7 +10,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "echo \"No linting configured\""
+    "lint": "echo \"No linting configured\"",
+    "postinstall": "electron-rebuild -f -w sqlite3"
   },
   "keywords": [],
   "author": {
@@ -43,7 +44,7 @@
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1",
-    "electron-updater": "^6.0.0",
+    "electron-updater": "^6.7.3",
     "lucide-react": "^0.563.0",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.7.0",

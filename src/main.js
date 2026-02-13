@@ -2,13 +2,19 @@ import { app, BrowserWindow, session, Menu } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { autoUpdater } from 'electron-updater';
+import { createRequire } from "module";
 
 import { registerIpcHandlers } from "./main/ipc/handlers.js";
 import db from "./main/db/database.js";
 
-// Initialize update checker
-autoUpdater.checkForUpdatesAndNotify();
+// Import electron-updater using CommonJS require (it's a CommonJS module)
+const require = createRequire(import.meta.url);
+const { autoUpdater } = require('electron-updater');
+
+// Initialize update checker (only in production, skip in dev)
+if (!process.env.MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+  autoUpdater.checkForUpdatesAndNotify();
+}
 
 
 const __filename = fileURLToPath(import.meta.url);
