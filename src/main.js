@@ -2,19 +2,13 @@ import { app, BrowserWindow, session, Menu } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { createRequire } from 'module';
+import { autoUpdater } from 'electron-updater';
 
 import { registerIpcHandlers } from "./main/ipc/handlers.js";
 import db from "./main/db/database.js";
 
-const require = createRequire(import.meta.url);
-
 // Initialize update checker
-try {
-  require('update-electron-app')();
-} catch (err) {
-  console.log('Update checker not available (development mode)');
-}
+autoUpdater.checkForUpdatesAndNotify();
 
 
 const __filename = fileURLToPath(import.meta.url);

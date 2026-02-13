@@ -2,6 +2,11 @@ const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
+  publish: {
+    provider: 'github',
+    owner: 'your-github-username',
+    repo: 'poultry-management-system-desktop',
+  },
   packagerConfig: {
     asar: false,
     icon: 'assets/icon.ico',
