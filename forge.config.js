@@ -4,6 +4,7 @@ const { FuseV1Options, FuseVersion } = require("@electron/fuses");
 module.exports = {
   packagerConfig: {
     asar: true,
+    asarUnpack: "**/node_modules/sqlite3/**/*",
     icon: "assets/icon.ico",
   },
   rebuildConfig: {

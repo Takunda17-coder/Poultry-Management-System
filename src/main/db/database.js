@@ -3,8 +3,33 @@ import { app } from "electron";
 import { createRequire } from "module";
 
 // Import sqlite3 using CommonJS require (it's a native CommonJS module)
+// The auto-unpack-natives plugin will unpack it from ASAR automatically
 const require = createRequire(import.meta.url);
-const sqlite3 = require("sqlite3");
+
+let sqlite3;
+try {
+  // First, try standard require (works in dev and if auto-unpack-natives sets up module resolution)
+  sqlite3 = require("sqlite3");
+} catch (error) {
+  // If that fails, try resolving from unpacked location (production fallback)
+  const appPath = app.getAppPath();
+  // Check if we're in an ASAR archive
+  if (appPath.includes('app.asar')) {
+    // Native modules are unpacked to app.asar.unpacked
+    const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
+    const sqlite3Path = path.join(unpackedPath, 'node_modules', 'sqlite3');
+    try {
+      sqlite3 = require(sqlite3Path);
+    } catch (unpackedError) {
+      console.error('Failed to load sqlite3 from unpacked path:', unpackedError);
+      throw new Error('sqlite3 module not found. Please ensure it is installed and rebuilt for Electron.');
+    }
+  } else {
+    // Not in ASAR, try regular node_modules
+    const sqlite3Path = path.join(appPath, 'node_modules', 'sqlite3');
+    sqlite3 = require(sqlite3Path);
+  }
+}
 
 const dbPath = path.join(app.getPath("userData"), "poultry.db");
 
