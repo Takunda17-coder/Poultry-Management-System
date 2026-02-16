@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ShoppingCart, Plus, DollarSign, CreditCard, Trash2, Edit2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FormInput, FormSelect, FormButton, Card, Table } from '../components/FormComponents';
+import Modal from '../components/Modal';
 
 export default function Sales() {
   const [sales, setSales] = useState([]);
@@ -87,6 +88,16 @@ export default function Sales() {
     return formData.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   };
 
+  const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info', onConfirm: null });
+
+  const showModal = (title, message, type = 'info', onConfirm = null) => {
+    setModal({ isOpen: true, title, message, type, onConfirm });
+  };
+
+  const closeModal = () => {
+    setModal(prev => ({ ...prev, isOpen: false }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -94,12 +105,12 @@ export default function Sales() {
 
       // Validation
       if (!formData.customer_name.trim()) {
-        alert('Please enter customer name');
+        showModal('Validation Error', 'Please enter customer name', 'warning');
         return;
       }
-      
+
       if (formData.payment_method === 'cash' && formData.amount_paid <= 0) {
-        alert('Please enter amount paid for cash transactions');
+        showModal('Validation Error', 'Please enter amount paid for cash transactions', 'warning');
         return;
       }
 
@@ -107,23 +118,23 @@ export default function Sales() {
       for (const item of formData.items) {
         if (item.item_type === 'broiler') {
           if (!item.batch_id) {
-            alert('Please select a batch for each broiler item');
+            showModal('Validation Error', 'Please select a batch for each broiler item', 'warning');
             return;
           }
-          
+
           const batch = batches.find(b => b.id === item.batch_id);
           if (!batch) {
-            alert(`Batch ${item.batch_id} not found`);
+            showModal('Error', `Batch ${item.batch_id} not found`, 'danger');
             return;
           }
 
           if (item.quantity > batch.available_birds) {
-            alert(`Batch "${batch.batch_code}" only has ${batch.available_birds} birds available, but you requested ${item.quantity}`);
+            showModal('Stock Error', `Batch "${batch.batch_code}" only has ${batch.available_birds} birds available, but you requested ${item.quantity}`, 'warning');
             return;
           }
 
           if (batch.available_birds === 0) {
-            alert(`Batch "${batch.batch_code}" has no birds available (finished batch)`);
+            showModal('Stock Error', `Batch "${batch.batch_code}" has no birds available (finished batch)`, 'warning');
             return;
           }
         }
@@ -144,76 +155,80 @@ export default function Sales() {
       } else if (formData.payment_method === 'credit') {
         debtAmount = total;
       }
-      
-      if (editingId) {
-        // Update existing sale
-        await window.api.sales.update(editingId, {
-          sale_date: formData.sale_date,
-          customer_name: formData.customer_name,
-          customer_phone: formData.customer_phone,
-          total_amount: total,
-          payment_method: formData.payment_method,
-          amount_paid: formData.payment_method === 'cash' ? Number(formData.amount_paid) : 0,
-          change_amount: changeAmount,
-          debt_amount: debtAmount
-        });
 
-        // Delete old items and add new ones
-        const existingSale = sales.find(s => s.id === editingId);
-        if (existingSale && existingSale.items) {
-          for (const item of existingSale.items) {
-            // Delete each old item
-            try {
-              await window.api.sales.deleteItem?.(item.id);
-            } catch (e) {
-              // Item might already be deleted
+      const saveOperation = async () => {
+        if (editingId) {
+          // Update existing sale
+          await window.api.sales.update(editingId, {
+            sale_date: formData.sale_date,
+            customer_name: formData.customer_name,
+            customer_phone: formData.customer_phone,
+            total_amount: total,
+            payment_method: formData.payment_method,
+            amount_paid: formData.payment_method === 'cash' ? Number(formData.amount_paid) : 0,
+            change_amount: changeAmount,
+            debt_amount: debtAmount
+          });
+
+          // Delete old items and add new ones
+          const existingSale = sales.find(s => s.id === editingId);
+          if (existingSale && existingSale.items) {
+            for (const item of existingSale.items) {
+              try {
+                await window.api.sales.deleteItem?.(item.id);
+              } catch (e) {
+                // Item might already be deleted
+              }
             }
+          }
+
+          // Add updated items
+          for (const item of formData.items) {
+            await window.api.sales.addItem({
+              sale_id: editingId,
+              item_type: item.item_type,
+              reference_id: item.batch_id || 0,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              subtotal: item.quantity * item.unit_price
+            });
+          }
+        } else {
+          // Create new sale
+          const saleId = await window.api.sales.add({
+            sale_date: formData.sale_date,
+            customer_name: formData.customer_name,
+            customer_phone: formData.customer_phone,
+            total_amount: total,
+            payment_method: formData.payment_method,
+            amount_paid: formData.payment_method === 'cash' ? Number(formData.amount_paid) : 0,
+            change_amount: changeAmount,
+            debt_amount: debtAmount
+          });
+
+          for (const item of formData.items) {
+            await window.api.sales.addItem({
+              sale_id: saleId,
+              item_type: item.item_type,
+              reference_id: item.batch_id || 0,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              subtotal: item.quantity * item.unit_price
+            });
           }
         }
 
-        // Add updated items
-        for (const item of formData.items) {
-          await window.api.sales.addItem({
-            sale_id: editingId,
-            item_type: item.item_type,
-            reference_id: item.batch_id || 0,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            subtotal: item.quantity * item.unit_price
-          });
-        }
-      } else {
-        // Create new sale
-        const saleId = await window.api.sales.add({
-          sale_date: formData.sale_date,
-          customer_name: formData.customer_name,
-          customer_phone: formData.customer_phone,
-          total_amount: total,
-          payment_method: formData.payment_method,
-          amount_paid: formData.payment_method === 'cash' ? Number(formData.amount_paid) : 0,
-          change_amount: changeAmount,
-          debt_amount: debtAmount
-        });
+        showModal('Success', editingId ? 'Sale updated successfully!' : 'Sale recorded successfully!', 'success');
+        resetForm();
+        loadSalesData();
+        loadBatchesData();
+      };
 
-        for (const item of formData.items) {
-          await window.api.sales.addItem({
-            sale_id: saleId,
-            item_type: item.item_type,
-            reference_id: item.batch_id || 0,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            subtotal: item.quantity * item.unit_price
-          });
-        }
-      }
+      await saveOperation();
 
-      alert(editingId ? 'Sale updated successfully!' : 'Sale recorded successfully!');
-      resetForm();
-      loadSalesData();
-      loadBatchesData(); // Reload batches to update availability
     } catch (error) {
       console.error('Error with sale:', error);
-      alert('Error: ' + error.message);
+      showModal('Error', error.message, 'danger');
     }
   };
 
@@ -221,7 +236,7 @@ export default function Sales() {
     try {
       // Load the full sale details including items
       const saleDetails = await window.api.sales.getDetails(sale.id);
-      
+
       setEditingId(sale.id);
       setFormData({
         sale_date: sale.sale_date,
@@ -240,7 +255,7 @@ export default function Sales() {
       setShowForm(true);
     } catch (error) {
       console.error('Error loading sale details:', error);
-      alert('Error loading sale details: ' + error.message);
+      showModal('Error', 'Error loading sale details: ' + error.message, 'danger');
     }
   };
 
@@ -258,18 +273,16 @@ export default function Sales() {
   };
 
   const handleDeleteSale = async (saleId) => {
-    if (!window.confirm('Are you sure you want to delete this sale? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      await window.api.sales.delete(saleId);
-      alert('Sale deleted successfully');
-      loadSalesData();
-    } catch (error) {
-      console.error('Error deleting sale:', error);
-      alert('Error: ' + error.message);
-    }
+    showModal('Confirm Deletion', 'Are you sure you want to delete this sale? This action cannot be undone.', 'danger', async () => {
+      try {
+        await window.api.sales.delete(saleId);
+        showModal('Deleted', 'Sale deleted successfully', 'success');
+        loadSalesData();
+      } catch (error) {
+        console.error('Error deleting sale:', error);
+        showModal('Error', error.message, 'danger');
+      }
+    });
   };
 
   if (loading) return <div className="p-8 text-center">Loading sales data...</div>;
@@ -380,7 +393,7 @@ export default function Sales() {
               {formData.items.map((item, idx) => {
                 const selectedBatch = item.batch_id ? batches.find(b => b.id === item.batch_id) : null;
                 const availableBirds = selectedBatch?.available_birds || 0;
-                
+
                 return (
                   <div key={idx} className="space-y-3 border border-gray-200 p-4 rounded bg-gray-50">
                     {/* Item Type and Batch Selection Row */}
@@ -411,14 +424,14 @@ export default function Sales() {
                           >
                             <option value="">-- Select a batch --</option>
                             {batches.map(batch => (
-                              <option 
-                                key={batch.id} 
+                              <option
+                                key={batch.id}
                                 value={batch.id}
                                 disabled={batch.available_birds === 0}
                               >
-                                {batch.batch_code} 
-                                ({batch.available_birds > 0 
-                                  ? `${batch.available_birds} birds available` 
+                                {batch.batch_code}
+                                ({batch.available_birds > 0
+                                  ? `${batch.available_birds} birds available`
                                   : 'FINISHED'})
                               </option>
                             ))}
@@ -440,11 +453,11 @@ export default function Sales() {
                           >
                             <option value="">-- Select a batch --</option>
                             {eggBatches.map(batch => (
-                              <option 
-                                key={batch.id} 
+                              <option
+                                key={batch.id}
                                 value={batch.id}
                               >
-                                Batch {batch.id} 
+                                Batch {batch.id}
                                 ({batch.crates_received} crates) - ₼{batch.cost_per_crate}/crate
                               </option>
                             ))}
@@ -466,9 +479,9 @@ export default function Sales() {
                               </span>
                             </p>
                             <p className="text-xs text-gray-600 mt-1">
-                              Received: {selectedBatch.quantity_received} | 
-                              Mortality: {selectedBatch.mortality_count} | 
-                              Home Use: {selectedBatch.home_use_count} | 
+                              Received: {selectedBatch.quantity_received} |
+                              Mortality: {selectedBatch.mortality_count} |
+                              Home Use: {selectedBatch.home_use_count} |
                               Sold: {selectedBatch.sold_count}
                             </p>
                           </div>
@@ -488,7 +501,7 @@ export default function Sales() {
                                   </span>
                                 </p>
                                 <p className="text-xs text-gray-600 mt-1">
-                                  Cost: ₼{eggBatches.find(b => b.id === item.batch_id)?.cost_per_crate}/crate | 
+                                  Cost: ₼{eggBatches.find(b => b.id === item.batch_id)?.cost_per_crate}/crate |
                                   Received: {new Date(eggBatches.find(b => b.id === item.batch_id)?.date_received).toLocaleDateString()}
                                 </p>
                               </>
@@ -595,7 +608,7 @@ export default function Sales() {
 
         {/* Filtered Sales */}
         {(() => {
-          const filtered = sales.filter(sale => 
+          const filtered = sales.filter(sale =>
             sale.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             sale.sale_date.includes(searchTerm)
           );
@@ -622,8 +635,8 @@ export default function Sales() {
                   const sale = paginatedSales.find(s => s.sale_date === row['Date'] && s.total_amount.toFixed(2) === row['Amount'].replace('$', ''));
                   return (
                     <>
-                      <button 
-                        onClick={() => sale && handleEditSale(sale)} 
+                      <button
+                        onClick={() => sale && handleEditSale(sale)}
                         className="text-blue-600 hover:text-blue-700 transition mr-2"
                         title="Edit"
                       >
@@ -660,11 +673,10 @@ export default function Sales() {
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`px-3 py-1 rounded ${
-                            currentPage === page
-                              ? 'bg-blue-600 text-white'
-                              : 'border border-gray-300 hover:bg-gray-50'
-                          }`}
+                          className={`px-3 py-1 rounded ${currentPage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'border border-gray-300 hover:bg-gray-50'
+                            }`}
                         >
                           {page}
                         </button>
@@ -679,11 +691,21 @@ export default function Sales() {
                     </button>
                   </div>
                 </div>
+
               )}
             </>
           );
         })()}
       </Card>
-    </div>
+
+      <Modal
+        isOpen={modal.isOpen}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onConfirm={modal.onConfirm}
+        onClose={closeModal}
+      />
+    </div >
   );
 }

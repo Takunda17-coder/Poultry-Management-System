@@ -32,9 +32,23 @@ export async function addSaleItem(itemData) {
 }
 
 export async function getAllSales() {
-    return db.all(`
-        SELECT * FROM sales ORDER BY sale_date DESC
-    `);
+    const sales = await db.all(`SELECT * FROM sales ORDER BY sale_date DESC`);
+    const items = await db.all(`SELECT * FROM sales_items`);
+
+    // Group items by sale_id for efficient mapping
+    const itemsBySaleId = {};
+    for (const item of items) {
+        if (!itemsBySaleId[item.sale_id]) {
+            itemsBySaleId[item.sale_id] = [];
+        }
+        itemsBySaleId[item.sale_id].push(item);
+    }
+
+    // Attach items to each sale
+    return sales.map(sale => ({
+        ...sale,
+        items: itemsBySaleId[sale.id] || []
+    }));
 }
 
 export async function getSaleDetails(saleId) {
@@ -50,12 +64,12 @@ export async function getSaleDetails(saleId) {
 export async function getTotalSales(startDate = null, endDate = null) {
     let query = `SELECT COALESCE(SUM(total_amount), 0) as total FROM sales`;
     let params = [];
-    
+
     if (startDate && endDate) {
         query += ` WHERE sale_date BETWEEN ? AND ?`;
         params = [startDate, endDate];
     }
-    
+
     const result = await db.get(query, params);
     return result.total || 0;
 }
@@ -114,7 +128,7 @@ export async function getTotalOutstandingChange() {
 export async function payDebt(saleId, amountPaid) {
     const sale = await db.get(`SELECT debt_amount FROM sales WHERE id = ?`, [saleId]);
     const remainingDebt = Math.max(0, sale.debt_amount - amountPaid);
-    
+
     return db.run(`
         UPDATE sales SET debt_amount = ? WHERE id = ?
     `, [remainingDebt, saleId]);
@@ -197,7 +211,7 @@ export async function recordDebtPayment(saleId, amountPaid, paymentMethod = 'cas
     // Update debt amount
     const remainingDebt = sale.debt_amount - amountPaid;
     const newStatus = remainingDebt === 0 ? 'paid' : 'partial';
-    
+
     return db.run(`
         UPDATE sales SET debt_amount = ?, status = ? WHERE id = ?
     `, [remainingDebt, newStatus, saleId]);
@@ -243,7 +257,7 @@ export async function editDebtPayment(paymentId, newAmount, paymentMethod, notes
     }
 
     const sale = await db.get(`SELECT debt_amount, total_amount FROM sales WHERE id = ?`, [payment.sale_id]);
-    
+
     // Calculate new debt based on difference
     const amountDifference = newAmount - payment.amount_paid;
     const newDebt = sale.debt_amount - amountDifference;
@@ -289,7 +303,7 @@ export async function recordChangeReturn(saleId, changeAmount, returnedBy = '', 
 
     // Update change amount
     const remainingChange = sale.change_amount - changeAmount;
-    
+
     return db.run(`
         UPDATE sales SET change_amount = ? WHERE id = ?
     `, [remainingChange, saleId]);
@@ -330,7 +344,7 @@ export async function editChangeReturn(returnId, newAmount, returnedBy, notes) {
     }
 
     const sale = await db.get(`SELECT change_amount FROM sales WHERE id = ?`, [returnRecord.sale_id]);
-    
+
     // Calculate new change based on difference
     const amountDifference = newAmount - returnRecord.change_amount;
     const newChange = sale.change_amount - amountDifference;

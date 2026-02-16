@@ -4,14 +4,17 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config
 export default defineConfig({
   plugins: [react()],
+  base: './',
   root: 'src/renderer',
   build: {
-    outDir: '../../.vite/build/renderer'
+    outDir: '../../.vite/build/renderer',
+    assetsDir: '.',
   },
+  assetsInclude: ['**/*.wasm'],
   optimizeDeps: {
-    exclude: ['sqlite3', 'path', 'fs']
+    exclude: ['path', 'fs']
   },
   ssr: {
-    external: ['sqlite3', 'path', 'fs']
+    external: ['path', 'fs']
   }
 });

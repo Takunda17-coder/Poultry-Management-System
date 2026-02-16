@@ -1,39 +1,174 @@
 import path from "path";
+import fs from "fs";
 import { app } from "electron";
 import { createRequire } from "module";
 
-// Import sqlite3 using CommonJS require (it's a native CommonJS module)
-// The auto-unpack-natives plugin will unpack it from ASAR automatically
 const require = createRequire(import.meta.url);
 
-let sqlite3;
-try {
-  // First, try standard require (works in dev and if auto-unpack-natives sets up module resolution)
-  sqlite3 = require("sqlite3");
-} catch (error) {
-  // If that fails, try resolving from unpacked location (production fallback)
-  const appPath = app.getAppPath();
-  // Check if we're in an ASAR archive
-  if (appPath.includes('app.asar')) {
-    // Native modules are unpacked to app.asar.unpacked
-    const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
-    const sqlite3Path = path.join(unpackedPath, 'node_modules', 'sqlite3');
-    try {
-      sqlite3 = require(sqlite3Path);
-    } catch (unpackedError) {
-      console.error('Failed to load sqlite3 from unpacked path:', unpackedError);
-      throw new Error('sqlite3 module not found. Please ensure it is installed and rebuilt for Electron.');
-    }
-  } else {
-    // Not in ASAR, try regular node_modules
-    const sqlite3Path = path.join(appPath, 'node_modules', 'sqlite3');
-    sqlite3 = require(sqlite3Path);
-  }
-}
-
+// Database file path
 const dbPath = path.join(app.getPath("userData"), "poultry.db");
 
-const SCHEMA = `
+class Database {
+  constructor(filePath) {
+    this.filePath = filePath;
+    this.db = null;
+    this.initPromise = this._init();
+  }
+
+  async _init() {
+    try {
+      console.log('Initializing sql.js...');
+
+      let initSqlJs;
+      let wasmPath;
+
+      if (app.isPackaged) {
+        // In production, sql.js is copied to resources/sql.js
+        const sqlJsModulePath = path.join(process.resourcesPath, 'sql.js');
+        initSqlJs = require(sqlJsModulePath);
+        wasmPath = path.join(sqlJsModulePath, 'dist', 'sql-wasm.wasm');
+      } else {
+        // In development, require normally from node_modules
+        initSqlJs = require('sql.js');
+        wasmPath = path.join(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm');
+      }
+
+      const SQL = await initSqlJs({
+        locateFile: () => wasmPath
+      });
+
+      // Load existing database from disk if it exists
+      if (fs.existsSync(this.filePath)) {
+        console.log(`Loading database from ${this.filePath}`);
+        const buffer = fs.readFileSync(this.filePath);
+        this.db = new SQL.Database(buffer);
+      } else {
+        console.log('Creating new in-memory database');
+        this.db = new SQL.Database();
+        // Save strictly to create the file immediately? Maybe not needed until first write.
+      }
+
+      console.log('Database initialized successfully');
+    } catch (err) {
+      console.error('Failed to initialize database:', err);
+      throw err;
+    }
+  }
+
+  // Save the database to disk
+  _save() {
+    if (!this.db) return;
+    try {
+      const data = this.db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(this.filePath, buffer);
+    } catch (err) {
+      console.error('Failed to save database:', err);
+    }
+  }
+
+  // Backup the database to a specific path
+  async backup(destinationPath) {
+    if (!this.db) throw new Error("Database not initialized");
+    try {
+      const data = this.db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(destinationPath, buffer);
+      return true;
+    } catch (err) {
+      console.error('Backup failed:', err);
+      throw err;
+    }
+  }
+
+  async run(sql, params = []) {
+    await this.initPromise;
+    try {
+      // sql.js .run() returns nothing, but we need to track changes/lastID for compatibility.
+      // However, sql.js doesn't easily expose lastID/changes on run().
+      // workaround: use exec for run? No.
+      // For lastID, we can run 'SELECT last_insert_rowid()' immediately after?
+      // sql.js documentation says db.run(sql, params) modifies the db.
+
+      this.db.run(sql, params);
+
+      // Attempt to get lastID if it was an INSERT
+      let lastID = 0;
+      let changes = 0; // sql.js doesn't give changes count easily without extra query
+
+      if (sql.trim().toUpperCase().startsWith('INSERT')) {
+        const res = this.db.exec('SELECT last_insert_rowid()');
+        if (res && res.length && res[0].values && res[0].values.length) {
+          lastID = res[0].values[0][0];
+        }
+      }
+
+      // Save after every write operation
+      this._save();
+
+      return { lastID, changes };
+    } catch (err) {
+      console.error('Database run error:', err);
+      throw err;
+    }
+  }
+
+  async get(sql, params = []) {
+    await this.initPromise;
+    try {
+      // sql.js doesn't have .get(), only .exec() which returns all results.
+      // We mimic .get() by taking the first result.
+      const stmt = this.db.prepare(sql, params);
+      let row = undefined;
+      if (stmt.step()) {
+        row = stmt.getAsObject();
+      }
+      stmt.free();
+      return row;
+    } catch (err) {
+      console.error('Database get error:', err);
+      throw err;
+    }
+  }
+
+  async all(sql, params = []) {
+    await this.initPromise;
+    try {
+      const stmt = this.db.prepare(sql, params);
+      const rows = [];
+      while (stmt.step()) {
+        rows.push(stmt.getAsObject());
+      }
+      stmt.free();
+      return rows;
+    } catch (err) {
+      console.error('Database all error:', err, sql);
+      throw err;
+    }
+  }
+
+  async exec(sql) {
+    await this.initPromise;
+    try {
+      this.db.exec(sql);
+      this._save(); // Save after exec (migration/schema changes)
+    } catch (err) {
+      console.error('Database exec error:', err);
+      throw err;
+    }
+  }
+
+  // Helper for pragma
+  async pragma(statement) {
+    // Pragma often doesn't need to return result like `run` does for ID, but `run` is fine.
+    return this.run(`PRAGMA ${statement}`);
+  }
+
+  async initialize() {
+    await this.initPromise;
+
+    // Schema definition
+    const SCHEMA = `
 --The project consists of eleven tables: chicken-batch,eggs-batch,suppliers,inventory,eggs-graded,broiler-mortality,feed-consumption,broiler-consumption,broiler-consumption,egg-loss,sale,sales-item--
 
 -- Suppliers (egg suppliers, bird suppliers)
@@ -181,125 +316,43 @@ CREATE TABLE IF NOT EXISTS return_history (
 );
 `;
 
-// Wrapper to promisify sqlite3 operations
-class Database {
-  constructor(filePath) {
-    this.db = new sqlite3.Database(filePath, (err) => {
-      if (err) {
-        console.error('Error opening database:', err);
-      }
-    });
-    this.db.configure('busyTimeout', 5000);
-  }
-
-  run(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function(err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve({ lastID: this.lastID, changes: this.changes });
-        }
-      });
-    });
-  }
-
-  get(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.get(sql, params, (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
-    });
-  }
-
-  all(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.all(sql, params, (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      });
-    });
-  }
-
-  exec(sql) {
-    return new Promise((resolve, reject) => {
-      this.db.exec(sql, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
-
-  pragma(pragma) {
-    return this.run(`PRAGMA ${pragma}`);
-  }
-
-  close() {
-    return new Promise((resolve, reject) => {
-      this.db.close((err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
-
-  async initialize() {
     // Enable FK constraints
-    await this.pragma('foreign_keys = ON');
-    
+    await this.run('PRAGMA foreign_keys = ON');
+
     // Initialize database schema
     await this.exec(SCHEMA);
 
-    // Migration: Add missing columns to sales table for debt/change tracking
+    // Migration logic
     try {
       const tableInfo = await this.all(`PRAGMA table_info(sales)`);
       const columns = tableInfo.map(col => col.name);
 
-      // Add missing columns if they don't exist
       if (!columns.includes('customer_name')) {
         await this.run(`ALTER TABLE sales ADD COLUMN customer_name TEXT`);
-        console.log('✓ Added customer_name column');
       }
       if (!columns.includes('customer_phone')) {
         await this.run(`ALTER TABLE sales ADD COLUMN customer_phone TEXT`);
-        console.log('✓ Added customer_phone column');
       }
       if (!columns.includes('amount_paid')) {
         await this.run(`ALTER TABLE sales ADD COLUMN amount_paid REAL DEFAULT 0`);
-        console.log('✓ Added amount_paid column');
       }
       if (!columns.includes('change_amount')) {
         await this.run(`ALTER TABLE sales ADD COLUMN change_amount REAL DEFAULT 0`);
-        console.log('✓ Added change_amount column');
       }
       if (!columns.includes('debt_amount')) {
         await this.run(`ALTER TABLE sales ADD COLUMN debt_amount REAL DEFAULT 0`);
-        console.log('✓ Added debt_amount column');
       }
       if (!columns.includes('status')) {
         await this.run(`ALTER TABLE sales ADD COLUMN status TEXT DEFAULT 'completed'`);
-        console.log('✓ Added status column');
       }
     } catch (error) {
-      console.error('Migration error (non-critical):', error.message);
+      console.error('Migration error:', error.message);
     }
+
+    // Check if we need to seed initial data? (Skipped for now)
   }
 }
 
 const db = new Database(dbPath);
 
 export default db;
-
