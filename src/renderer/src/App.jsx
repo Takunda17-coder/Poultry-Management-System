@@ -15,6 +15,8 @@ import Debt from './pages/Debt';
 import Change from './pages/Change';
 import Reports from './pages/Reports';
 import DataMigration from './pages/DataMigration';
+import Customers from './pages/Customers';
+import CustomerProfile from './pages/CustomerProfile';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -45,6 +47,8 @@ export default function App() {
               <Route path="/change" element={<Change />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/data-migration" element={<DataMigration />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/customers/:id" element={<CustomerProfile />} />
             </Routes>
           </div>
         </main>

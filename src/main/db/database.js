@@ -182,6 +182,17 @@ CREATE TABLE IF NOT EXISTS suppliers (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Customers
+CREATE TABLE IF NOT EXISTS customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
 -- Broiler batches
 CREATE TABLE IF NOT EXISTS bird_batches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -344,6 +355,33 @@ CREATE TABLE IF NOT EXISTS return_history (
       }
       if (!columns.includes('status')) {
         await this.run(`ALTER TABLE sales ADD COLUMN status TEXT DEFAULT 'completed'`);
+      }
+      if (!columns.includes('customer_id')) {
+        await this.run(`ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id)`);
+        
+        // Data Migration: Extract unique customers from sales and link them
+        console.log('Migrating legacy customers from sales...');
+        
+        // Insert unique customer_name/phone pairs into customers table
+        await this.run(`
+          INSERT INTO customers (name, phone)
+          SELECT DISTINCT customer_name, customer_phone 
+          FROM sales 
+          WHERE customer_name IS NOT NULL AND customer_name != ''
+          AND customer_name NOT IN (SELECT name FROM customers)
+        `);
+        
+        // Update sales table to link to the new customer records
+        await this.run(`
+          UPDATE sales 
+          SET customer_id = (
+            SELECT id FROM customers 
+            WHERE customers.name = sales.customer_name
+          )
+          WHERE customer_name IS NOT NULL AND customer_name != ''
+        `);
+        
+        console.log('Customer data migration completed.');
       }
     } catch (error) {
       console.error('Migration error:', error.message);

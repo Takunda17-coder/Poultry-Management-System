@@ -7,6 +7,14 @@ contextBridge.exposeInMainWorld("api", {
         delete: (supplierId) => ipcRenderer.invoke("supplier:delete", supplierId),
         list: () => ipcRenderer.invoke("supplier:list"),
     },
+    customers: {
+        add: (data) => ipcRenderer.invoke("customers:add", data),
+        update: (customerId, data) => ipcRenderer.invoke("customers:update", customerId, data),
+        delete: (customerId) => ipcRenderer.invoke("customers:delete", customerId),
+        getAll: () => ipcRenderer.invoke("customers:getAll"),
+        getDetails: (customerId) => ipcRenderer.invoke("customers:getDetails", customerId),
+        getByName: (name) => ipcRenderer.invoke("customers:getByName", name),
+    },
     broiler: {
         addBatch: (data) => ipcRenderer.invoke("broiler:addBatch", data),
         updateBatch: (batchId, data) => ipcRenderer.invoke("broiler:updateBatch", batchId, data),

@@ -7,6 +7,7 @@ import * as accounting from "../db/repositories/accounting.repo.js";
 import * as inventory from "../db/repositories/inventory.repo.js";
 import * as birdEvents from "../db/repositories/bird-events.repo.js";
 import * as eggLoss from "../db/repositories/egg-loss.repo.js";
+import * as customers from "../db/repositories/customers.repo.js";
 
 export function registerIpcHandlers() {
 
@@ -86,9 +87,33 @@ export function registerIpcHandlers() {
         suppliers.getSupplierCount()
     );
 
-    // Dashboard revenue: use total revenue from all sales, not just egg grades
     ipcMain.handle('stats:getRevenue', () =>
         accounting.getTotalRevenue()
+    );
+
+    // Customers handlers
+    ipcMain.handle('customers:add', (_, data) =>
+        customers.addCustomer(data)
+    );
+
+    ipcMain.handle('customers:update', (_, customerId, data) =>
+        customers.updateCustomer(customerId, data)
+    );
+
+    ipcMain.handle('customers:delete', (_, customerId) =>
+        customers.deleteCustomer(customerId)
+    );
+
+    ipcMain.handle('customers:getAll', () =>
+        customers.getAllCustomers()
+    );
+
+    ipcMain.handle('customers:getDetails', (_, customerId) =>
+        customers.getCustomerDetails(customerId)
+    );
+
+    ipcMain.handle('customers:getByName', (_, name) =>
+        customers.getCustomerByName(name)
     );
 
     // Sales handlers

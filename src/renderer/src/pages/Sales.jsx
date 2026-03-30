@@ -12,6 +12,7 @@ export default function Sales() {
   const [editingId, setEditingId] = useState(null);
   const [batches, setBatches] = useState([]);
   const [eggBatches, setEggBatches] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -53,14 +54,16 @@ export default function Sales() {
 
   const loadBatchesData = async () => {
     try {
-      const [batchesData, eggBatchesData] = await Promise.all([
+      const [batchesData, eggBatchesData, customersData] = await Promise.all([
         window.api.broiler.listBatchesWithAvailability(),
-        window.api.eggs.listBatches()
+        window.api.eggs.listBatches(),
+        window.api.customers.getAll()
       ]);
       setBatches(batchesData || []);
       setEggBatches(eggBatchesData || []);
+      setCustomers(customersData || []);
     } catch (error) {
-      console.error('Error loading batches:', error);
+      console.error('Error loading form data:', error);
     }
   };
 
@@ -359,14 +362,29 @@ export default function Sales() {
 
             {/* Customer Information */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-yellow-50 p-4 rounded border border-yellow-200">
-              <FormInput
-                type="text"
-                label="Customer Name *"
-                value={formData.customer_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-                placeholder="Enter customer name"
-                required
-              />
+              <div className="relative">
+                <FormInput
+                  type="text"
+                  label="Customer Name *"
+                  list="customer-names"
+                  value={formData.customer_name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, customer_name: val }));
+                    const matchedCustomer = customers.find(c => c.name.toLowerCase() === val.toLowerCase());
+                    if (matchedCustomer && matchedCustomer.phone && !formData.customer_phone) {
+                      setFormData(prev => ({ ...prev, customer_phone: matchedCustomer.phone }));
+                    }
+                  }}
+                  placeholder="Enter customer name"
+                  required
+                />
+                <datalist id="customer-names">
+                  {customers.map(c => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+                </datalist>
+              </div>
               <FormInput
                 type="tel"
                 label="Customer Phone"

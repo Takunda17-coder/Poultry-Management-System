@@ -55,6 +55,28 @@ export async function getBroilerRevenue() {
     return result.total || 0;
 }
 
+// Calculate mortality loss
+export async function getMortalityLoss() {
+    const result = await db.get(`
+        SELECT COALESCE(SUM(be.quantity * bb.cost_per_bird), 0) as total
+        FROM bird_events be
+        JOIN bird_batches bb ON be.batch_id = bb.id
+        WHERE be.event_type = 'mortality'
+    `);
+    return result.total || 0;
+}
+
+// Calculate home consumption loss
+export async function getHomeConsumptionLoss() {
+    const result = await db.get(`
+        SELECT COALESCE(SUM(be.quantity * bb.cost_per_bird), 0) as total
+        FROM bird_events be
+        JOIN bird_batches bb ON be.batch_id = bb.id
+        WHERE be.event_type = 'home_use'
+    `);
+    return result.total || 0;
+}
+
 // Calculate profit/loss
 export async function getFinancialSummary() {
     const broilerCosts = await getBroilerCosts();
@@ -62,10 +84,13 @@ export async function getFinancialSummary() {
     const inventoryCosts = await getInventoryCosts();
     const eggRevenue = await getEggRevenue();
     const broilerRevenue = await getBroilerRevenue();
+    const mortalityLoss = await getMortalityLoss();
+    const homeConsumptionLoss = await getHomeConsumptionLoss();
     
     const totalCosts = broilerCosts + eggCosts + inventoryCosts;
     const totalRevenue = eggRevenue + broilerRevenue;
-    const profit = totalRevenue - totalCosts;
+    const totalLosses = mortalityLoss + homeConsumptionLoss;
+    const profit = totalRevenue - totalCosts - totalLosses;
     
     return {
         broilerCosts,
@@ -75,6 +100,9 @@ export async function getFinancialSummary() {
         eggRevenue,
         broilerRevenue,
         totalRevenue,
+        mortalityLoss,
+        homeConsumptionLoss,
+        totalLosses,
         profit,
         profitMargin: totalRevenue > 0 ? ((profit / totalRevenue) * 100).toFixed(2) : 0
     };

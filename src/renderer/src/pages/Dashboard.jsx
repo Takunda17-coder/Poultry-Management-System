@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bird, Egg, Users, TrendingUp, CreditCard, Coins, DollarSign } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '../components/FormComponents';
 
 export default function Dashboard() {
@@ -79,41 +80,41 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <a
-            href="/add-broiler"
+          <Link
+            to="/add-broiler"
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <Bird size={20} />
             <span>Add Broiler</span>
-          </a>
-          <a
-            href="/add-eggs"
+          </Link>
+          <Link
+            to="/add-eggs"
             className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <Egg size={20} />
             <span>Add Eggs</span>
-          </a>
-          <a
-            href="/add-supplier"
+          </Link>
+          <Link
+            to="/add-supplier"
             className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <Users size={20} />
             <span>Add Supplier</span>
-          </a>
-          <a
-            href="/sales"
+          </Link>
+          <Link
+            to="/sales"
             className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <DollarSign size={20} />
             <span>New Sale</span>
-          </a>
-          <a
-            href="/reports"
+          </Link>
+          <Link
+            to="/reports"
             className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center space-x-2"
           >
             <TrendingUp size={20} />
             <span>Reports</span>
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -127,7 +128,7 @@ export default function Dashboard() {
             </div>
             <CreditCard className="text-red-600" size={48} />
           </div>
-          <a href="/debt" className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-4 block">View Debts →</a>
+          <Link to="/debt" className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-4 block">View Debts →</Link>
         </Card>
 
         <Card title="Outstanding Change">
@@ -138,7 +139,7 @@ export default function Dashboard() {
             </div>
             <Coins className="text-blue-600" size={48} />
           </div>
-          <a href="/change" className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-4 block">View Change →</a>
+          <Link to="/change" className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-4 block">View Change →</Link>
         </Card>
 
         <Card title="Payment Methods">

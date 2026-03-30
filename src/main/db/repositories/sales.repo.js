@@ -1,10 +1,26 @@
 import db from "../database.js";
 
 export async function addSale(saleData) {
+    // Auto-create customer if name is provided but no customer_id exists
+    // OR the frontend should do it and just pass customer_id. Let's support both.
+    let targetCustomerId = saleData.customer_id || null;
+
+    if (!targetCustomerId && saleData.customer_name) {
+        // Attempt to find or create customer
+        const existing = await db.get(`SELECT id FROM customers WHERE name = ? COLLATE NOCASE`, [saleData.customer_name]);
+        if (existing) {
+            targetCustomerId = existing.id;
+        } else {
+            const customerRes = await db.run(`INSERT INTO customers (name, phone) VALUES (?, ?)`, [saleData.customer_name, saleData.customer_phone || null]);
+            targetCustomerId = customerRes.lastID;
+        }
+    }
+
     const result = await db.run(`
-        INSERT INTO sales (customer_name, customer_phone, sale_date, total_amount, payment_method, amount_paid, change_amount, debt_amount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sales (customer_id, customer_name, customer_phone, sale_date, total_amount, payment_method, amount_paid, change_amount, debt_amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
+        targetCustomerId,
         saleData.customer_name || null,
         saleData.customer_phone || null,
         saleData.sale_date,
@@ -149,8 +165,21 @@ export async function getBroilerSalesRevenue() {
 }
 
 export async function updateSale(saleId, saleData) {
+    let targetCustomerId = saleData.customer_id || null;
+
+    if (!targetCustomerId && saleData.customer_name) {
+        const existing = await db.get(`SELECT id FROM customers WHERE name = ? COLLATE NOCASE`, [saleData.customer_name]);
+        if (existing) {
+            targetCustomerId = existing.id;
+        } else {
+            const customerRes = await db.run(`INSERT INTO customers (name, phone) VALUES (?, ?)`, [saleData.customer_name, saleData.customer_phone || null]);
+            targetCustomerId = customerRes.lastID;
+        }
+    }
+
     return db.run(`
         UPDATE sales SET
+            customer_id = ?,
             customer_name = ?,
             customer_phone = ?,
             sale_date = ?,
@@ -162,6 +191,7 @@ export async function updateSale(saleId, saleData) {
             status = ?
         WHERE id = ?
     `, [
+        targetCustomerId,
         saleData.customer_name || null,
         saleData.customer_phone || null,
         saleData.sale_date,

@@ -42,61 +42,59 @@ export default function Accounting() {
       </div>
 
       {/* Main Financial Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
         {/* Total Revenue */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow p-6 border-l-4 border-green-500">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-700 text-sm font-medium">Total Revenue</p>
-              <p className="text-2xl font-bold text-green-600 mt-2">
+              <p className="text-gray-700 font-medium">Total Revenue</p>
+              <p className="text-3xl font-bold text-green-600 mt-2">
                 ${financialSummary.totalRevenue.toFixed(2)}
               </p>
             </div>
-            <TrendingUp className="text-green-500" size={40} />
+            <TrendingUp className="text-green-500" size={48} />
           </div>
         </div>
 
-        {/* Total Costs */}
-        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow p-6 border-l-4 border-red-500">
-          <div className="flex items-center justify-between">
+        {/* Total Costs & Losses */}
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow p-6 border-l-4 border-red-500 flex flex-col justify-center">
+          <div className="flex items-center justify-between pointer-events-none">
             <div>
-              <p className="text-gray-700 text-sm font-medium">Total Costs</p>
-              <p className="text-2xl font-bold text-red-600 mt-2">
-                ${financialSummary.totalCosts.toFixed(2)}
+              <p className="text-gray-700 font-medium">Total Deductions</p>
+              <p className="text-3xl font-bold text-red-600 mt-2">
+                ${(financialSummary.totalCosts + financialSummary.totalLosses).toFixed(2)}
               </p>
             </div>
-            <TrendingDown className="text-red-500" size={40} />
+            <TrendingDown className="text-red-500" size={48} />
+          </div>
+          <div className="mt-4 pt-4 border-t border-red-200 grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-gray-600">Base Costs</p>
+              <p className="font-semibold text-red-700">${financialSummary.totalCosts.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-gray-600">Total Losses</p>
+              <p className="font-semibold text-red-700">${financialSummary.totalLosses.toFixed(2)}</p>
+            </div>
           </div>
         </div>
 
         {/* Net Profit/Loss */}
-        <div className={`rounded-lg shadow p-6 border-l-4 ${isProfitable ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-500'}`}>
+        <div className={`rounded-xl shadow p-6 border-l-4 ${isProfitable ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-500'}`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-700 text-sm font-medium">Net Profit</p>
-              <p className={`text-2xl font-bold mt-2 ${isProfitable ? 'text-blue-600' : 'text-orange-600'}`}>
+              <p className="text-gray-700 font-medium">Net Profit</p>
+              <p className={`text-3xl font-bold mt-2 ${isProfitable ? 'text-blue-600' : 'text-orange-600'}`}>
                 ${financialSummary.profit.toFixed(2)}
               </p>
             </div>
-            <DollarSign className={isProfitable ? 'text-blue-500' : 'text-orange-500'} size={40} />
+            <DollarSign className={isProfitable ? 'text-blue-500' : 'text-orange-500'} size={48} />
           </div>
-        </div>
-
-        {/* Profit Margin */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow p-6 border-l-4 border-purple-500">
-          <div>
-            <p className="text-gray-700 text-sm font-medium">Profit Margin</p>
-            <p className="text-2xl font-bold text-purple-600 mt-2">{financialSummary.profitMargin}%</p>
-          </div>
-        </div>
-
-        {/* Egg Revenue */}
-        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow p-6 border-l-4 border-yellow-500">
-          <div>
-            <p className="text-gray-700 text-sm font-medium">Egg Revenue</p>
-            <p className="text-2xl font-bold text-yellow-600 mt-2">
-              ${financialSummary.eggRevenue.toFixed(2)}
-            </p>
+          <div className="mt-4 pt-4 border-t border-blue-200 grid grid-cols-1 text-sm">
+             <div>
+              <p className="text-gray-600">Profit Margin</p>
+              <p className={`font-semibold ${isProfitable ? 'text-blue-700' : 'text-orange-700'}`}>{financialSummary.profitMargin}%</p>
+            </div>
           </div>
         </div>
       </div>
@@ -168,6 +166,34 @@ export default function Accounting() {
                 </p>
                 <p className="text-xs text-gray-500">
                   {((financialSummary.inventoryCosts / financialSummary.totalCosts) * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Losses Breakdown */}
+        <div className="bg-white rounded-lg shadow p-6 mt-6 lg:mt-0 col-span-1 lg:col-span-2">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Losses & Deductions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
+              <span className="text-gray-700 font-medium">Mortality Loss</span>
+              <div className="mt-2">
+                <p className="font-bold text-2xl text-orange-600">
+                  ${financialSummary.mortalityLoss.toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Value of birds lost to mortality
+                </p>
+              </div>
+            </div>
+            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-100">
+              <span className="text-gray-700 font-medium">Home Consumption</span>
+              <div className="mt-2">
+                <p className="font-bold text-2xl text-yellow-600">
+                  ${financialSummary.homeConsumptionLoss.toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Value of birds used for home consumption
                 </p>
               </div>
             </div>
